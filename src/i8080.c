@@ -51,7 +51,7 @@ static uint16_t instr_lda(i8080_t* i8080);
 static void instr_shld(i8080_t* i8080);
 static void instr_lhld(i8080_t* i8080);
 static void instr_jmp(i8080_t* i8080);
-static void instr_call(i8080_t* i8080);
+static void instr_call(i8080_t* i8080, uint16_t address);
 static void instr_ret(i8080_t* i8080);
 
 static uint16_t i8080_bc(i8080_t* i8080);
@@ -360,15 +360,15 @@ void decode(i8080_t* i8080) {
         case 0xe2: printf("JPO 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->p) { instr_jmp(i8080); } break;
 
         // Call Subroutine Instructions
-        case 0xcd: printf("CALL 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); instr_call(i8080); break;
-        case 0xdc: printf("CC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->cy) { instr_call(i8080); } break;
-        case 0xd4: printf("CNC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->cy) { instr_call(i8080); } break;
-        case 0xcc: printf("CZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->z) { instr_call(i8080); } break;
-        case 0xc4: printf("CNZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->z) { instr_call(i8080); } break;
-        case 0xfc: printf("CM 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->s) { instr_call(i8080); } break;
-        case 0xf4: printf("CP 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->s) { instr_call(i8080); } break;
-        case 0xec: printf("CPE 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->p) { instr_call(i8080); } break;
-        case 0xe4: printf("CPO 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->p) { instr_call(i8080); } break;
+        case 0xcd: printf("CALL 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); instr_call(i8080, i8080->pc); break;
+        case 0xdc: printf("CC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->cy) { instr_call(i8080, i8080->pc); } break;
+        case 0xd4: printf("CNC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->cy) { instr_call(i8080, i8080->pc); } break;
+        case 0xcc: printf("CZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->z) { instr_call(i8080, i8080->pc); } break;
+        case 0xc4: printf("CNZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->z) { instr_call(i8080, i8080->pc); } break;
+        case 0xfc: printf("CM 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->s) { instr_call(i8080, i8080->pc); } break;
+        case 0xf4: printf("CP 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->s) { instr_call(i8080, i8080->pc); } break;
+        case 0xec: printf("CPE 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->p) { instr_call(i8080, i8080->pc); } break;
+        case 0xe4: printf("CPO 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->p) { instr_call(i8080, i8080->pc); } break;
 
         // Return From Subroutine Instructions
         case 0xc9: printf("RET"); instr_ret(i8080); break;
@@ -382,14 +382,14 @@ void decode(i8080_t* i8080) {
         case 0xe0: printf("RPO"); if(!i8080->p) { instr_ret(i8080); } break;
 
         // RST (Reset) Instructions
-        case 0xc7: printf("RST 0"); break;
-        case 0xcf: printf("RST 1"); break;
-        case 0xd7: printf("RST 2"); break;
-        case 0xdf: printf("RST 3"); break;
-        case 0xe7: printf("RST 4"); break;
-        case 0xef: printf("RST 5"); break;
-        case 0xf7: printf("RST 6"); break;
-        case 0xff: printf("RST 7"); break;
+        case 0xc7: printf("RST 0"); instr_call(i8080, 0x00); break;
+        case 0xcf: printf("RST 1"); instr_call(i8080, 0x08); break;
+        case 0xd7: printf("RST 2"); instr_call(i8080, 0x10); break;
+        case 0xdf: printf("RST 3"); instr_call(i8080, 0x18); break;
+        case 0xe7: printf("RST 4"); instr_call(i8080, 0x20); break;
+        case 0xef: printf("RST 5"); instr_call(i8080, 0x28); break;
+        case 0xf7: printf("RST 6"); instr_call(i8080, 0x30); break;
+        case 0xff: printf("RST 7"); instr_call(i8080, 0x38); break;
 
         // Interrupt Flip-Flop Instructions
         case 0xfb: printf("EI"); break;
@@ -581,9 +581,9 @@ void instr_jmp(i8080_t* i8080) {
     i8080->pc = read_word(i8080);
 }
 
-void instr_call(i8080_t* i8080) {
-    i8080->write_byte(i8080->sp - 1, (i8080->pc & 0xff00) >> 8);
-    i8080->write_byte(i8080->sp - 2, i8080->pc & 0x00ff);
+void instr_call(i8080_t* i8080, uint16_t address) {
+    i8080->write_byte(i8080->sp - 1, (address & 0xff00) >> 8);
+    i8080->write_byte(i8080->sp - 2, address & 0x00ff);
     i8080->sp -= 2;
     i8080->pc = read_word(i8080);
 }
