@@ -1,11 +1,27 @@
-all: clean main
-	@./out/main
+# Commands
+CC=/usr/local/Cellar/llvm/11.0.0_1/bin/clang
+RM=rm -rf
+MKDIR=mkdir -p
 
-main: out
-	@clang src/main.c src/i8080.c -o out/main --std=c11
+# Directories
+SRC=src
+BUILD=out
 
-out:
-	@mkdir -p out
+# Files
+EXECUTABLE=main
+SOURCE_FILES=$(SRC)/main.c $(SRC)/i8080.c
+
+# Flags
+CC_FLAGS=-std=c11
+
+all: clean $(EXECUTABLE)
+	@./$(BUILD)/$(EXECUTABLE)
+
+$(EXECUTABLE): $(BUILD)
+	@$(CC) $(SOURCE_FILES) -o $(BUILD)/$(EXECUTABLE) $(CC_FLAGS)
+
+$(BUILD):
+	@$(MKDIR) $(BUILD)
 
 clean:
-	@rm -rf out
+	@$(RM) $(BUILD)

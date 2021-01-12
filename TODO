@@ -3,7 +3,7 @@ Project:
   ☐ Add Intel 8085 support to this project since it is built on top of it.
 
 Makefile:
-  ☐ Refactor to use variables.
+  ✔ Refactor to use variables. @done(21-01-12 21:29)
   ☐ Add a debug target for debug mode and print instructions.
 
 i8080:

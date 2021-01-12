@@ -8,8 +8,6 @@ uint8_t* rom_bytes;
 uint8_t read_byte(uint16_t address);
 void write_byte(uint16_t address, uint8_t byte);
 
-void print_binary(uint8_t byte);
-
 int main(int argc, char* argv[]) {
     // if(argc < 2) {
     //     printf("Rom filename should be entered\n");
@@ -48,19 +46,7 @@ int main(int argc, char* argv[]) {
 
     free_i8080(i8080);
 
-    uint8_t a = 0b10000010;
-    uint8_t b = a << 1;
-    print_binary(a);
-    print_binary(b);
-
     return 0;
-}
-
-void print_binary(uint8_t byte) {
-    printf("0b");
-    for(int i = 0; i < 8; ++i)
-        printf("%d", (byte & (0x80 >> i)) >> (7 - i));
-    printf("\n");
 }
 
 uint8_t read_byte(uint16_t address) {

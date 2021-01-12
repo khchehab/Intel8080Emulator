@@ -439,13 +439,13 @@ uint8_t instr_dcr(i8080_t* i8080, uint8_t register_value) {
 
 void instr_daa(i8080_t* i8080) {
     uint8_t lowerNibble = i8080->a & 0x0f;
-    if(lowerNibble > 0x9 | i8080->ac) {
+    if((lowerNibble > 0x9) | i8080->ac) {
         i8080->a += 0x06;
         i8080->ac = (lowerNibble + 0x06) > 0xff;
     }
 
     uint8_t upperNibble = (i8080->a & 0xf0) >> 4;
-    if(upperNibble > 0x9 | i8080->cy) {
+    if((upperNibble > 0x9) | i8080->cy) {
         i8080->a += 0x60;
         i8080->cy = (upperNibble + 0x06) > 0xff ? true : i8080->cy;
     }
