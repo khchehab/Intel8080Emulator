@@ -83,6 +83,7 @@ i8080_t* init_i8080() {
     i8080->ac = false;
     i8080->p = false;
     i8080->cy = false;
+    i8080->interrupt_enabled = false;
     return i8080;
 }
 
@@ -393,8 +394,8 @@ void decode(i8080_t* i8080) {
         case 0xff: printf("RST 7"); instr_call(i8080, 0x38); break;
 
         // Interrupt Flip-Flop Instructions
-        case 0xfb: printf("EI"); break;
-        case 0xf3: printf("DI"); break;
+        case 0xfb: printf("EI"); i8080->interrupt_enabled = true; break;
+        case 0xf3: printf("DI"); i8080->interrupt_enabled = false; break;
 
         // Input/Output Instructions
         case 0xdb: printf("IN #0x%02x", i8080->read_byte(i8080->pc + 1)); break;

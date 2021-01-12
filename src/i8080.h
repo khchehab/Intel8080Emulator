@@ -9,6 +9,7 @@ typedef struct i8080_t {
     uint8_t a, b, c, d, e, h, l;
     uint16_t sp, pc;
     _Bool s, z, ac, p, cy;
+    _Bool interrupt_enabled;
     
     uint8_t (*read_byte)(uint16_t);
     void (*write_byte)(uint16_t, uint8_t);
