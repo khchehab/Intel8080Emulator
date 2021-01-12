@@ -1,11 +1,15 @@
 
+Project:
+  ☐ Add Intel 8085 support to this project since it is built on top of it.
+
 Makefile:
   ☐ Refactor to use variables.
   ☐ Add a debug target for debug mode and print instructions.
 
 i8080:
   ☐ Refactor the code for read or writes that are written several times to a single function (like reading or writing to register pairs).
-  ☐ Implement DAA instruction.
+  ✔ Implement DAA instruction. @done(21-01-12 20:24)
+  ☐ Implement remaining instructions (EI, DI, IN, OUT and HLT).
 
 Tests:
   ☐ Let main function read the test COM files and see what they produce.

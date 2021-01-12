@@ -27,6 +27,7 @@ static const uint8_t OPCODE_LENGTHS[] = {
 // private helper functions
 static uint8_t instr_inr(i8080_t* i8080, uint8_t register_value);
 static uint8_t instr_dcr(i8080_t* i8080, uint8_t register_value);
+static void instr_daa(i8080_t* i8080);
 static uint8_t instr_add_adc(i8080_t* i8080, uint8_t register_value, bool include_carry);
 static uint8_t instr_sub_sbb(i8080_t* i8080, uint8_t register_value, bool include_carry);
 static uint8_t instr_ana(i8080_t* i8080, uint8_t register_value);
@@ -126,7 +127,7 @@ void decode(i8080_t* i8080) {
         case 0x35: printf("DCR M"); i8080->write_byte(i8080_hl(i8080), instr_dcr(i8080, i8080->read_byte(i8080_hl(i8080)))); break;
 
         case 0x2f: printf("CMA"); i8080->a ^= 0xff ; break;
-        case 0x27: printf("DAA"); break;
+        case 0x27: printf("DAA"); instr_daa(i8080); break;
 
         // Data Transfer Instructions
         case 0x7f: printf("MOV A, A"); i8080->a = i8080->a; break;
@@ -433,6 +434,22 @@ uint8_t instr_dcr(i8080_t* i8080, uint8_t register_value) {
     i8080_szp(i8080, result);
     i8080->ac = (result & 0x0f) != 0x0f; // set if there is a borrow from the high nibble to the low nibble, unset otherwise
     return result;
+}
+
+void instr_daa(i8080_t* i8080) {
+    uint8_t lowerNibble = i8080->a & 0x0f;
+    if(lowerNibble > 0x9 | i8080->ac) {
+        i8080->a += 0x06;
+        i8080->ac = (lowerNibble + 0x06) > 0xff;
+    }
+
+    uint8_t upperNibble = (i8080->a & 0xf0) >> 4;
+    if(upperNibble > 0x9 | i8080->cy) {
+        i8080->a += 0x60;
+        i8080->cy = (upperNibble + 0x06) > 0xff ? true : i8080->cy;
+    }
+
+    i8080_szp(i8080, i8080->a);
 }
 
 uint8_t instr_add_adc(i8080_t* i8080, uint8_t register_value, bool include_carry) {
