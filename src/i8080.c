@@ -52,6 +52,7 @@ static void instr_shld(i8080_t* i8080);
 static void instr_lhld(i8080_t* i8080);
 static void instr_jmp(i8080_t* i8080);
 static void instr_call(i8080_t* i8080);
+static void instr_ret(i8080_t* i8080);
 
 static uint16_t i8080_bc(i8080_t* i8080);
 static uint16_t i8080_de(i8080_t* i8080);
@@ -370,15 +371,15 @@ void decode(i8080_t* i8080) {
         case 0xe4: printf("CPO 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->p) { instr_call(i8080); } break;
 
         // Return From Subroutine Instructions
-        case 0xc9: printf("RET"); break;
-        case 0xd8: printf("RC"); break;
-        case 0xd0: printf("RNC"); break;
-        case 0xc8: printf("RZ"); break;
-        case 0xc0: printf("RNZ"); break;
-        case 0xf8: printf("RM"); break;
-        case 0xf0: printf("RP"); break;
-        case 0xe8: printf("RPE"); break;
-        case 0xe0: printf("RPO"); break;
+        case 0xc9: printf("RET"); instr_ret(i8080); break;
+        case 0xd8: printf("RC"); if(i8080->cy) { instr_ret(i8080); } break;
+        case 0xd0: printf("RNC"); if(!i8080->cy) { instr_ret(i8080); } break;
+        case 0xc8: printf("RZ"); if(i8080->z) { instr_ret(i8080); } break;
+        case 0xc0: printf("RNZ"); if(!i8080->z) { instr_ret(i8080); } break;
+        case 0xf8: printf("RM"); if(i8080->s) { instr_ret(i8080); } break;
+        case 0xf0: printf("RP"); if(!i8080->s) { instr_ret(i8080); } break;
+        case 0xe8: printf("RPE"); if(i8080->p) { instr_ret(i8080); } break;
+        case 0xe0: printf("RPO"); if(!i8080->p) { instr_ret(i8080); } break;
 
         // RST (Reset) Instructions
         case 0xc7: printf("RST 0"); break;
@@ -583,8 +584,13 @@ void instr_jmp(i8080_t* i8080) {
 void instr_call(i8080_t* i8080) {
     i8080->write_byte(i8080->sp - 1, (i8080->pc & 0xff00) >> 8);
     i8080->write_byte(i8080->sp - 2, i8080->pc & 0x00ff);
-    i8080->sp += 2;
+    i8080->sp -= 2;
     i8080->pc = read_word(i8080);
+}
+
+void instr_ret(i8080_t* i8080) {
+    i8080->pc = (i8080->read_byte(i8080->sp + 1) << 8) | i8080->read_byte(i8080->sp);
+    i8080->sp += 2;
 }
 
 uint16_t i8080_bc(i8080_t* i8080) {
