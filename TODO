@@ -1,0 +1,12 @@
+
+Makefile:
+  ☐ Refactor to use variables.
+  ☐ Add a debug target for debug mode and print instructions.
+
+i8080:
+  ☐ Refactor the code for read or writes that are written several times to a single function (like reading or writing to register pairs).
+  ☐ Implement DAA instruction.
+
+Tests:
+  ☐ Let main function read the test COM files and see what they produce.
+  ☐ Check if there are other tests that can be done to check if the emulator is working.

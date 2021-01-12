@@ -45,11 +45,17 @@ static void instr_push_bdh(i8080_t* i8080, uint16_t register_value);
 static void instr_push_psw(i8080_t* i8080);
 static uint16_t instr_pop_bdh(i8080_t* i8080);
 static void instr_pop_psw(i8080_t* i8080);
+static uint16_t instr_lxi(i8080_t* i8080);
+static void instr_sta(i8080_t* i8080);
+static uint16_t instr_lda(i8080_t* i8080);
+static void instr_shld(i8080_t* i8080);
+static void instr_lhld(i8080_t* i8080);
 
 static uint16_t i8080_bc(i8080_t* i8080);
 static uint16_t i8080_de(i8080_t* i8080);
 static uint16_t i8080_hl(i8080_t* i8080);
 static uint8_t i8080_psw(i8080_t* i8080);
+static uint16_t read_word(i8080_t* i8080);
 static void i8080_set_bc(i8080_t* i8080, uint16_t bc);
 static void i8080_set_de(i8080_t* i8080, uint16_t de);
 static void i8080_set_hl(i8080_t* i8080, uint16_t hl);
@@ -85,7 +91,6 @@ void free_i8080(i8080_t* i8080) {
 void decode(i8080_t* i8080) {
     uint8_t opcode = i8080->read_byte(i8080->pc);
     uint8_t opcode_size = OPCODE_LENGTHS[opcode];
-    uint16_t hl = i8080_hl(i8080);
 
     // print the current program counter and the opcode
     printf("0x%04x\t0x%02x\t", i8080->pc, opcode);
@@ -106,7 +111,7 @@ void decode(i8080_t* i8080) {
         case 0x1c: printf("INR E"); i8080->e = instr_inr(i8080, i8080->e); break;
         case 0x24: printf("INR H"); i8080->h = instr_inr(i8080, i8080->h); break;
         case 0x2c: printf("INR L"); i8080->l = instr_inr(i8080, i8080->l); break;
-        case 0x34: printf("INR M"); i8080->write_byte(hl, instr_inr(i8080, i8080->read_byte(hl))); break;
+        case 0x34: printf("INR M"); i8080->write_byte(i8080_hl(i8080), instr_inr(i8080, i8080->read_byte(i8080_hl(i8080)))); break;
 
         case 0x3d: printf("DCR A"); i8080->a = instr_dcr(i8080, i8080->a); break;
         case 0x05: printf("DCR B"); i8080->b = instr_dcr(i8080, i8080->b); break;
@@ -115,10 +120,10 @@ void decode(i8080_t* i8080) {
         case 0x1d: printf("DCR E"); i8080->e = instr_dcr(i8080, i8080->e); break;
         case 0x25: printf("DCR H"); i8080->h = instr_dcr(i8080, i8080->h); break;
         case 0x2d: printf("DCR L"); i8080->l = instr_dcr(i8080, i8080->l); break;
-        case 0x35: printf("DCR M"); i8080->write_byte(hl, instr_dcr(i8080, i8080->read_byte(hl))); break;
+        case 0x35: printf("DCR M"); i8080->write_byte(i8080_hl(i8080), instr_dcr(i8080, i8080->read_byte(i8080_hl(i8080)))); break;
 
         case 0x2f: printf("CMA"); i8080->a ^= 0xff ; break;
-        case 0x27: printf("DAA"); /* todo */ break;
+        case 0x27: printf("DAA"); break;
 
         // Data Transfer Instructions
         case 0x7f: printf("MOV A, A"); i8080->a = i8080->a; break;
@@ -128,7 +133,7 @@ void decode(i8080_t* i8080) {
         case 0x7b: printf("MOV A, E"); i8080->a = i8080->e; break;
         case 0x7c: printf("MOV A, H"); i8080->a = i8080->h; break;
         case 0x7d: printf("MOV A, L"); i8080->a = i8080->l; break;
-        case 0x7e: printf("MOV A, M"); i8080->a = i8080->read_byte(hl); break;
+        case 0x7e: printf("MOV A, M"); i8080->a = i8080->read_byte(i8080_hl(i8080)); break;
 
         case 0x47: printf("MOV B, A"); i8080->b = i8080->a; break;
         case 0x40: printf("MOV B, B"); i8080->b = i8080->b; break;
@@ -137,7 +142,7 @@ void decode(i8080_t* i8080) {
         case 0x43: printf("MOV B, E"); i8080->b = i8080->e; break;
         case 0x44: printf("MOV B, H"); i8080->b = i8080->h; break;
         case 0x45: printf("MOV B, L"); i8080->b = i8080->l; break;
-        case 0x46: printf("MOV B, M"); i8080->b = i8080->read_byte(hl); break;
+        case 0x46: printf("MOV B, M"); i8080->b = i8080->read_byte(i8080_hl(i8080)); break;
 
         case 0x4f: printf("MOV C, A"); i8080->c = i8080->a; break;
         case 0x48: printf("MOV C, B"); i8080->c = i8080->b; break;
@@ -146,7 +151,7 @@ void decode(i8080_t* i8080) {
         case 0x4b: printf("MOV C, E"); i8080->c = i8080->e; break;
         case 0x4c: printf("MOV C, H"); i8080->c = i8080->h; break;
         case 0x4d: printf("MOV C, L"); i8080->c = i8080->l; break;
-        case 0x4e: printf("MOV C, M"); i8080->c = i8080->read_byte(hl); break;
+        case 0x4e: printf("MOV C, M"); i8080->c = i8080->read_byte(i8080_hl(i8080)); break;
 
         case 0x57: printf("MOV D, A"); i8080->d = i8080->a; break;
         case 0x50: printf("MOV D, B"); i8080->d = i8080->b; break;
@@ -155,7 +160,7 @@ void decode(i8080_t* i8080) {
         case 0x53: printf("MOV D, E"); i8080->d = i8080->e; break;
         case 0x54: printf("MOV D, H"); i8080->d = i8080->h; break;
         case 0x55: printf("MOV D, L"); i8080->d = i8080->l; break;
-        case 0x56: printf("MOV D, M"); i8080->d = i8080->read_byte(hl); break;
+        case 0x56: printf("MOV D, M"); i8080->d = i8080->read_byte(i8080_hl(i8080)); break;
 
         case 0x5f: printf("MOV E, A"); i8080->e = i8080->a; break;
         case 0x58: printf("MOV E, B"); i8080->e = i8080->b; break;
@@ -164,7 +169,7 @@ void decode(i8080_t* i8080) {
         case 0x5b: printf("MOV E, E"); i8080->e = i8080->e; break;
         case 0x5c: printf("MOV E, H"); i8080->e = i8080->h; break;
         case 0x5d: printf("MOV E, L"); i8080->e = i8080->l; break;
-        case 0x5e: printf("MOV E, M"); i8080->e = i8080->read_byte(hl); break;
+        case 0x5e: printf("MOV E, M"); i8080->e = i8080->read_byte(i8080_hl(i8080)); break;
 
         case 0x67: printf("MOV H, A"); i8080->h = i8080->a; break;
         case 0x60: printf("MOV H, B"); i8080->h = i8080->b; break;
@@ -173,7 +178,7 @@ void decode(i8080_t* i8080) {
         case 0x63: printf("MOV H, E"); i8080->h = i8080->e; break;
         case 0x64: printf("MOV H, H"); i8080->h = i8080->h; break;
         case 0x65: printf("MOV H, L"); i8080->h = i8080->l; break;
-        case 0x66: printf("MOV H, M"); i8080->h = i8080->read_byte(hl); break;
+        case 0x66: printf("MOV H, M"); i8080->h = i8080->read_byte(i8080_hl(i8080)); break;
 
         case 0x6f: printf("MOV L, A"); i8080->l = i8080->a; break;
         case 0x68: printf("MOV L, B"); i8080->l = i8080->b; break;
@@ -182,15 +187,15 @@ void decode(i8080_t* i8080) {
         case 0x6b: printf("MOV L, E"); i8080->l = i8080->e; break;
         case 0x6c: printf("MOV L, H"); i8080->l = i8080->h; break;
         case 0x6d: printf("MOV L, L"); i8080->l = i8080->l; break;
-        case 0x6e: printf("MOV L, M"); i8080->l = i8080->read_byte(hl); break;
+        case 0x6e: printf("MOV L, M"); i8080->l = i8080->read_byte(i8080_hl(i8080)); break;
 
-        case 0x77: printf("MOV M, A"); i8080->write_byte(hl, i8080->a); break;
-        case 0x70: printf("MOV M, B"); i8080->write_byte(hl, i8080->b); break;
-        case 0x71: printf("MOV M, C"); i8080->write_byte(hl, i8080->c); break;
-        case 0x72: printf("MOV M, D"); i8080->write_byte(hl, i8080->d); break;
-        case 0x73: printf("MOV M, E"); i8080->write_byte(hl, i8080->e); break;
-        case 0x74: printf("MOV M, H"); i8080->write_byte(hl, i8080->h); break;
-        case 0x75: printf("MOV M, L"); i8080->write_byte(hl, i8080->l); break;
+        case 0x77: printf("MOV M, A"); i8080->write_byte(i8080_hl(i8080), i8080->a); break;
+        case 0x70: printf("MOV M, B"); i8080->write_byte(i8080_hl(i8080), i8080->b); break;
+        case 0x71: printf("MOV M, C"); i8080->write_byte(i8080_hl(i8080), i8080->c); break;
+        case 0x72: printf("MOV M, D"); i8080->write_byte(i8080_hl(i8080), i8080->d); break;
+        case 0x73: printf("MOV M, E"); i8080->write_byte(i8080_hl(i8080), i8080->e); break;
+        case 0x74: printf("MOV M, H"); i8080->write_byte(i8080_hl(i8080), i8080->h); break;
+        case 0x75: printf("MOV M, L"); i8080->write_byte(i8080_hl(i8080), i8080->l); break;
 
         case 0x02: printf("STAX B"); i8080->write_byte(i8080_bc(i8080), i8080->a); break;
         case 0x12: printf("STAX D"); i8080->write_byte(i8080_de(i8080), i8080->a); break;
@@ -206,7 +211,7 @@ void decode(i8080_t* i8080) {
         case 0x83: printf("ADD E"); i8080->a = instr_add_adc(i8080, i8080->e, false); break;
         case 0x84: printf("ADD H"); i8080->a = instr_add_adc(i8080, i8080->h, false); break;
         case 0x85: printf("ADD L"); i8080->a = instr_add_adc(i8080, i8080->l, false); break;
-        case 0x86: printf("ADD M"); i8080->a = instr_add_adc(i8080, i8080->read_byte(hl), false); break;
+        case 0x86: printf("ADD M"); i8080->a = instr_add_adc(i8080, i8080->read_byte(i8080_hl(i8080)), false); break;
 
         case 0x8f: printf("ADC A"); i8080->a = instr_add_adc(i8080, i8080->a, i8080->cy); break;
         case 0x88: printf("ADC B"); i8080->a = instr_add_adc(i8080, i8080->b, i8080->cy); break;
@@ -215,7 +220,7 @@ void decode(i8080_t* i8080) {
         case 0x8b: printf("ADC E"); i8080->a = instr_add_adc(i8080, i8080->e, i8080->cy); break;
         case 0x8c: printf("ADC H"); i8080->a = instr_add_adc(i8080, i8080->h, i8080->cy); break;
         case 0x8d: printf("ADC L"); i8080->a = instr_add_adc(i8080, i8080->l, i8080->cy); break;
-        case 0x8e: printf("ADC M"); i8080->a = instr_add_adc(i8080, i8080->read_byte(hl), i8080->cy); break;
+        case 0x8e: printf("ADC M"); i8080->a = instr_add_adc(i8080, i8080->read_byte(i8080_hl(i8080)), i8080->cy); break;
 
         case 0x97: printf("SUB A"); i8080->a = instr_sub_sbb(i8080, i8080->a, false); break;
         case 0x90: printf("SUB B"); i8080->a = instr_sub_sbb(i8080, i8080->b, false); break;
@@ -224,7 +229,7 @@ void decode(i8080_t* i8080) {
         case 0x93: printf("SUB E"); i8080->a = instr_sub_sbb(i8080, i8080->e, false); break;
         case 0x94: printf("SUB H"); i8080->a = instr_sub_sbb(i8080, i8080->h, false); break;
         case 0x95: printf("SUB L"); i8080->a = instr_sub_sbb(i8080, i8080->l, false); break;
-        case 0x96: printf("SUB M"); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(hl), false); break;
+        case 0x96: printf("SUB M"); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(i8080_hl(i8080)), false); break;
 
         case 0x9f: printf("SBB A"); i8080->a = instr_sub_sbb(i8080, i8080->a, i8080->cy); break;
         case 0x98: printf("SBB B"); i8080->a = instr_sub_sbb(i8080, i8080->b, i8080->cy); break;
@@ -233,7 +238,7 @@ void decode(i8080_t* i8080) {
         case 0x9b: printf("SBB E"); i8080->a = instr_sub_sbb(i8080, i8080->e, i8080->cy); break;
         case 0x9c: printf("SBB H"); i8080->a = instr_sub_sbb(i8080, i8080->h, i8080->cy); break;
         case 0x9d: printf("SBB L"); i8080->a = instr_sub_sbb(i8080, i8080->l, i8080->cy); break;
-        case 0x9e: printf("SBB M"); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(hl), i8080->cy); break;
+        case 0x9e: printf("SBB M"); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(i8080_hl(i8080)), i8080->cy); break;
 
         case 0xa7: printf("ANA A"); i8080->a = instr_ana(i8080, i8080->a); break;
         case 0xa0: printf("ANA B"); i8080->a = instr_ana(i8080, i8080->b); break;
@@ -242,7 +247,7 @@ void decode(i8080_t* i8080) {
         case 0xa3: printf("ANA E"); i8080->a = instr_ana(i8080, i8080->e); break;
         case 0xa4: printf("ANA H"); i8080->a = instr_ana(i8080, i8080->h); break;
         case 0xa5: printf("ANA L"); i8080->a = instr_ana(i8080, i8080->l); break;
-        case 0xa6: printf("ANA M"); i8080->a = instr_ana(i8080, i8080->read_byte(hl)); break;
+        case 0xa6: printf("ANA M"); i8080->a = instr_ana(i8080, i8080->read_byte(i8080_hl(i8080))); break;
 
         case 0xaf: printf("XRA A"); i8080->a = instr_xra(i8080, i8080->a); break;
         case 0xa8: printf("XRA B"); i8080->a = instr_xra(i8080, i8080->b); break;
@@ -251,7 +256,7 @@ void decode(i8080_t* i8080) {
         case 0xab: printf("XRA E"); i8080->a = instr_xra(i8080, i8080->e); break;
         case 0xac: printf("XRA H"); i8080->a = instr_xra(i8080, i8080->h); break;
         case 0xad: printf("XRA L"); i8080->a = instr_xra(i8080, i8080->l); break;
-        case 0xae: printf("XRA M"); i8080->a = instr_xra(i8080, i8080->read_byte(hl)); break;
+        case 0xae: printf("XRA M"); i8080->a = instr_xra(i8080, i8080->read_byte(i8080_hl(i8080))); break;
 
         case 0xb7: printf("ORA A"); i8080->a = instr_ora(i8080, i8080->a); break;
         case 0xb0: printf("ORA B"); i8080->a = instr_ora(i8080, i8080->b); break;
@@ -260,7 +265,7 @@ void decode(i8080_t* i8080) {
         case 0xb3: printf("ORA E"); i8080->a = instr_ora(i8080, i8080->e); break;
         case 0xb4: printf("ORA H"); i8080->a = instr_ora(i8080, i8080->h); break;
         case 0xb5: printf("ORA L"); i8080->a = instr_ora(i8080, i8080->l); break;
-        case 0xb6: printf("ORA M"); i8080->a = instr_ora(i8080, i8080->read_byte(hl)); break;
+        case 0xb6: printf("ORA M"); i8080->a = instr_ora(i8080, i8080->read_byte(i8080_hl(i8080))); break;
 
         // CMP basically does the same subtract as SUB instruction and sets the flags with the same rules without changing any registers
         case 0xbf: printf("CMP A"); instr_sub_sbb(i8080, i8080->a, false); break;
@@ -270,7 +275,7 @@ void decode(i8080_t* i8080) {
         case 0xbb: printf("CMP E"); instr_sub_sbb(i8080, i8080->e, false); break;
         case 0xbc: printf("CMP H"); instr_sub_sbb(i8080, i8080->h, false); break;
         case 0xbd: printf("CMP L"); instr_sub_sbb(i8080, i8080->l, false); break;
-        case 0xbe: printf("CMP M"); instr_sub_sbb(i8080, i8080->read_byte(hl), false); break;
+        case 0xbe: printf("CMP M"); instr_sub_sbb(i8080, i8080->read_byte(i8080_hl(i8080)), false); break;
 
         // Rotate Accumulator Instructions
         case 0x07: printf("RLC"); instr_rlc(i8080); break;
@@ -309,47 +314,47 @@ void decode(i8080_t* i8080) {
         case 0xf9: printf("SPHL"); i8080->sp = i8080_hl(i8080); break;
 
         // Immediate Instructions
-        case 0x01: printf("LXI B, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0x11: printf("LXI D, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0x21: printf("LXI H, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0x31: printf("LXI SP, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
+        case 0x01: printf("LXI B, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); i8080_set_bc(i8080, instr_lxi(i8080)); break;
+        case 0x11: printf("LXI D, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); i8080_set_de(i8080, instr_lxi(i8080)); break;
+        case 0x21: printf("LXI H, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); i8080_set_hl(i8080, instr_lxi(i8080)); break;
+        case 0x31: printf("LXI SP, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); i8080->sp = instr_lxi(i8080); break;
 
-        case 0x3e: printf("MVI A, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x06: printf("MVI B, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x0e: printf("MVI C, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x16: printf("MVI D, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x1e: printf("MVI E, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x26: printf("MVI H, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x2e: printf("MVI L, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0x36: printf("MVI M, #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
+        case 0x3e: printf("MVI A, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = i8080->read_byte(i8080->pc + 1); break;
+        case 0x06: printf("MVI B, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->b = i8080->read_byte(i8080->pc + 1); break;
+        case 0x0e: printf("MVI C, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->c = i8080->read_byte(i8080->pc + 1); break;
+        case 0x16: printf("MVI D, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->d = i8080->read_byte(i8080->pc + 1); break;
+        case 0x1e: printf("MVI E, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->e = i8080->read_byte(i8080->pc + 1); break;
+        case 0x26: printf("MVI H, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->h = i8080->read_byte(i8080->pc + 1); break;
+        case 0x2e: printf("MVI L, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->l = i8080->read_byte(i8080->pc + 1); break;
+        case 0x36: printf("MVI M, #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->write_byte(i8080_hl(i8080), i8080->read_byte(i8080->pc + 1)); break;
 
-        case 0xc6: printf("ADI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xce: printf("ACI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xd6: printf("SUI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xde: printf("SBI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xe6: printf("ANI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xee: printf("XRI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xf6: printf("ORI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
-        case 0xfe: printf("CPI #0x%02x", i8080->read_byte(i8080->pc + 1)); break;
+        case 0xc6: printf("ADI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_add_adc(i8080, i8080->read_byte(i8080->pc + 1), false); break;
+        case 0xce: printf("ACI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_add_adc(i8080, i8080->read_byte(i8080->pc + 1), i8080->cy); break;
+        case 0xd6: printf("SUI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(i8080->pc + 1), false); break;
+        case 0xde: printf("SBI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(i8080->pc + 1), i8080->cy); break;
+        case 0xe6: printf("ANI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_ana(i8080, i8080->read_byte(i8080->pc + 1)); break;
+        case 0xee: printf("XRI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_xra(i8080, i8080->read_byte(i8080->pc + 1)); break;
+        case 0xf6: printf("ORI #0x%02x", i8080->read_byte(i8080->pc + 1)); i8080->a = instr_ora(i8080, i8080->read_byte(i8080->pc + 1)); break;
+        case 0xfe: printf("CPI #0x%02x", i8080->read_byte(i8080->pc + 1)); instr_sub_sbb(i8080, i8080->read_byte(i8080->pc + 1), false); break;
 
         // Direct Addressing Instructions
-        case 0x32: printf("STA 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0x3a: printf("LDA 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
+        case 0x32: printf("STA 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); instr_sta(i8080); break;
+        case 0x3a: printf("LDA 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); i8080->a = instr_lda(i8080); break;
 
-        case 0x22: printf("SHLD 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0x2a: printf("LHLD 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
+        case 0x22: printf("SHLD 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); instr_shld(i8080); break;
+        case 0x2a: printf("LHLD 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); instr_lhld(i8080); break;
 
         // Jump Instructions
-        case 0xe9: printf("PCHL"); break;
-        case 0xc3: printf("JMP 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xda: printf("JC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xd2: printf("JNC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xca: printf("JZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xc2: printf("JNZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xfa: printf("JM 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xf2: printf("JP 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xea: printf("JPE 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
-        case 0xe2: printf("JPO 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
+        case 0xe9: printf("PCHL"); i8080->pc = i8080_hl(i8080); break;
+        case 0xc3: printf("JMP 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); i8080->pc = read_word(i8080); break;
+        case 0xda: printf("JC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->cy) { i8080->pc = read_word(i8080); } break;
+        case 0xd2: printf("JNC 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->cy) { i8080->pc = read_word(i8080); } break;
+        case 0xca: printf("JZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->z) { i8080->pc = read_word(i8080); } break;
+        case 0xc2: printf("JNZ 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->z) { i8080->pc = read_word(i8080); } break;
+        case 0xfa: printf("JM 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->s) { i8080->pc = read_word(i8080); } break;
+        case 0xf2: printf("JP 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->s) { i8080->pc = read_word(i8080); } break;
+        case 0xea: printf("JPE 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(i8080->p) { i8080->pc = read_word(i8080); } break;
+        case 0xe2: printf("JPO 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); if(!i8080->p) { i8080->pc = read_word(i8080); } break;
 
         // Call Subroutine Instructions
         case 0xcd: printf("CALL 0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
@@ -544,6 +549,31 @@ void instr_pop_psw(i8080_t* i8080) {
     i8080->sp += 2;
 }
 
+uint16_t instr_lxi(i8080_t* i8080) {
+    return (i8080->read_byte(i8080->pc + 2) << 8) | i8080->read_byte(i8080->pc + 1);
+}
+
+void instr_sta(i8080_t* i8080) {
+    uint16_t address = (i8080->read_byte(i8080->pc + 2) << 8) | i8080->read_byte(i8080->pc + 1);
+    i8080->write_byte(address, i8080->a);
+}
+
+uint16_t instr_lda(i8080_t* i8080) {
+    return (i8080->read_byte(i8080->pc + 2) << 8) | i8080->read_byte(i8080->pc + 1);
+}
+
+void instr_shld(i8080_t* i8080) {
+    uint16_t address = (i8080->read_byte(i8080->pc + 2) << 8) | i8080->read_byte(i8080->pc + 1);
+    i8080->write_byte(address, i8080->l);
+    i8080->write_byte(address + 1, i8080->h);
+}
+
+void instr_lhld(i8080_t* i8080) {
+    uint16_t address = (i8080->read_byte(i8080->pc + 2) << 8) | i8080->read_byte(i8080->pc + 1);
+    i8080->l = i8080->read_byte(address);
+    i8080->h = i8080->read_byte(address + 1);
+}
+
 uint16_t i8080_bc(i8080_t* i8080) {
     return (i8080->b << 8) | (i8080->c);
 }
@@ -572,6 +602,10 @@ Flag register (PSW):
 uint8_t i8080_psw(i8080_t* i8080) {
     return (i8080->s << 7) | (i8080->z << 6) | (0x0 << 5) | (i8080->ac << 4) |
            (0x0 << 3) | (i8080->p << 2) | (0x1 >> 1) | (i8080->cy);
+}
+
+uint16_t read_word(i8080_t* i8080) {
+    return (i8080->read_byte(i8080->pc + 2) << 8) | i8080->read_byte(i8080->pc + 1);
 }
 
 void i8080_set_bc(i8080_t* i8080, uint16_t bc) {

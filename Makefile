@@ -1,5 +1,3 @@
-# todo refactor me
-
 all: clean main
 	@./out/main
 
