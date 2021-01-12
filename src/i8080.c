@@ -37,11 +37,23 @@ static void instr_rrc(i8080_t* i8080);
 static void instr_ral(i8080_t* i8080);
 static void instr_rar(i8080_t* i8080);
 static void instr_dad(i8080_t* i8080, uint16_t register_value);
+static uint16_t instr_inx(i8080_t* i8080, uint16_t register_value);
+static uint16_t instr_dcx(i8080_t* i8080, uint16_t register_value);
+static void instr_xchg(i8080_t* i8080);
+static void instr_xthl(i8080_t* i8080);
+static void instr_push_bdh(i8080_t* i8080, uint16_t register_value);
+static void instr_push_psw(i8080_t* i8080);
+static uint16_t instr_pop_bdh(i8080_t* i8080);
+static void instr_pop_psw(i8080_t* i8080);
 
 static uint16_t i8080_bc(i8080_t* i8080);
 static uint16_t i8080_de(i8080_t* i8080);
 static uint16_t i8080_hl(i8080_t* i8080);
+static uint8_t i8080_psw(i8080_t* i8080);
+static void i8080_set_bc(i8080_t* i8080, uint16_t bc);
+static void i8080_set_de(i8080_t* i8080, uint16_t de);
 static void i8080_set_hl(i8080_t* i8080, uint16_t hl);
+static void i8080_set_psw(i8080_t* i8080, uint8_t psw);
 static void i8080_szp(i8080_t* i8080, uint8_t byte);
 static bool parity(uint8_t byte);
 
@@ -267,34 +279,34 @@ void decode(i8080_t* i8080) {
         case 0x1f: printf("RAR"); instr_rar(i8080); break;
 
         // Register Pair Instructions
-        case 0xc5: printf("PUSH B"); break;
-        case 0xd5: printf("PUSH D"); break;
-        case 0xe5: printf("PUSH H"); break;
-        case 0xf5: printf("PUSH PSW"); break;
+        case 0xc5: printf("PUSH B"); instr_push_bdh(i8080, i8080_bc(i8080)); break;
+        case 0xd5: printf("PUSH D"); instr_push_bdh(i8080, i8080_de(i8080)); break;
+        case 0xe5: printf("PUSH H"); instr_push_bdh(i8080, i8080_hl(i8080)); break;
+        case 0xf5: printf("PUSH PSW"); instr_push_psw(i8080); break;
 
-        case 0xc1: printf("POP B"); break;
-        case 0xd1: printf("POP D"); break;
-        case 0xe1: printf("POP H"); break;
-        case 0xf1: printf("POP PSW"); break;
+        case 0xc1: printf("POP B"); i8080_set_bc(i8080, instr_pop_bdh(i8080)); break;
+        case 0xd1: printf("POP D"); i8080_set_de(i8080, instr_pop_bdh(i8080)); break;
+        case 0xe1: printf("POP H"); i8080_set_hl(i8080, instr_pop_bdh(i8080)); break;
+        case 0xf1: printf("POP PSW"); instr_pop_psw(i8080); break;
 
         case 0x09: printf("DAD B"); instr_dad(i8080, i8080_bc(i8080)); break;
         case 0x19: printf("DAD D"); instr_dad(i8080, i8080_de(i8080)); break;
         case 0x29: printf("DAD H"); instr_dad(i8080, i8080_hl(i8080)); break;
         case 0x39: printf("DAD SP"); instr_dad(i8080, i8080->sp); break;
 
-        case 0x03: printf("INX B"); break;
-        case 0x13: printf("INX D"); break;
-        case 0x23: printf("INX H"); break;
-        case 0x33: printf("INX SP"); break;
+        case 0x03: printf("INX B"); i8080_set_bc(i8080, instr_inx(i8080, i8080_bc(i8080))); break;
+        case 0x13: printf("INX D"); i8080_set_de(i8080, instr_inx(i8080, i8080_de(i8080))); break;
+        case 0x23: printf("INX H"); i8080_set_hl(i8080, instr_inx(i8080, i8080_hl(i8080))); break;
+        case 0x33: printf("INX SP"); i8080->sp = instr_inx(i8080, i8080->sp); break;
 
-        case 0x0b: printf("DCX B"); break;
-        case 0x1b: printf("DCX D"); break;
-        case 0x2b: printf("DCX H"); break;
-        case 0x3b: printf("DCX SP"); break;
+        case 0x0b: printf("DCX B"); i8080_set_bc(i8080, instr_dcx(i8080, i8080_bc(i8080))); break;
+        case 0x1b: printf("DCX D"); i8080_set_de(i8080, instr_dcx(i8080, i8080_de(i8080))); break;
+        case 0x2b: printf("DCX H"); i8080_set_hl(i8080, instr_dcx(i8080, i8080_hl(i8080))); break;
+        case 0x3b: printf("DCX SP"); i8080->sp = instr_dcx(i8080, i8080->sp); break;
 
-        case 0xeb: printf("XCHG"); break;
-        case 0xe3: printf("XTHL"); break;
-        case 0xf9: printf("SPHL"); break;
+        case 0xeb: printf("XCHG"); instr_xchg(i8080); break;
+        case 0xe3: printf("XTHL"); instr_xthl(i8080); break;
+        case 0xf9: printf("SPHL"); i8080->sp = i8080_hl(i8080); break;
 
         // Immediate Instructions
         case 0x01: printf("LXI B, #0x%02x%02x", i8080->read_byte(i8080->pc + 2), i8080->read_byte(i8080->pc + 1)); break;
@@ -484,6 +496,54 @@ void instr_dad(i8080_t* i8080, uint16_t register_value) {
     i8080_set_hl(i8080, result & 0xffff);
 }
 
+uint16_t instr_inx(i8080_t* i8080, uint16_t register_value) {
+    return register_value + 1;
+}
+
+uint16_t instr_dcx(i8080_t* i8080, uint16_t register_value) {
+    return register_value - 1;
+}
+
+void instr_xchg(i8080_t* i8080) {
+    uint8_t tmp_h = i8080->h, tmp_l = i8080->l;
+    i8080->h = i8080->d;
+    i8080->l = i8080->e;
+    i8080->d = tmp_h;
+    i8080->e = tmp_l;
+}
+
+void instr_xthl(i8080_t* i8080) {
+    uint8_t tmp_h = i8080->h, tmp_l = i8080->l;
+    i8080->h = i8080->read_byte(i8080->sp + 1);
+    i8080->l = i8080->read_byte(i8080->sp);
+    i8080->write_byte(i8080->sp + 1, tmp_h);
+    i8080->write_byte(i8080->sp, tmp_l);
+}
+
+void instr_push_bdh(i8080_t* i8080, uint16_t register_value) {
+    i8080->write_byte(i8080->sp - 1, (register_value & 0xff00) >> 8);
+    i8080->write_byte(i8080->sp - 2, register_value & 0x00ff);
+    i8080->sp -= 2;
+}
+
+void instr_push_psw(i8080_t* i8080) {
+    i8080->write_byte(i8080->sp - 1, i8080->a);
+    i8080->write_byte(i8080->sp - 2, i8080_psw(i8080));
+    i8080->sp -= 2;
+}
+
+uint16_t instr_pop_bdh(i8080_t* i8080) {
+    uint16_t result = (i8080->read_byte(i8080->sp + 1) << 8) | i8080->read_byte(i8080->sp);
+    i8080->sp += 2;
+    return result;
+}
+
+void instr_pop_psw(i8080_t* i8080) {
+    i8080_set_psw(i8080, i8080->read_byte(i8080->sp));
+    i8080->a = i8080->read_byte(i8080->sp + 1);
+    i8080->sp += 2;
+}
+
 uint16_t i8080_bc(i8080_t* i8080) {
     return (i8080->b << 8) | (i8080->c);
 }
@@ -496,9 +556,45 @@ uint16_t i8080_hl(i8080_t* i8080) {
     return (i8080->h << 8) | (i8080->l);
 }
 
+/*
+Flag register (PSW):
+    Bit Position: 7  6  5  4  3  2  1  0
+    Flag:         S  Z  0  AC 0  P  1  C
+    
+    S:  Sign flag.
+    Z:  Zero flag.
+    AC: Auxiliary Carry flag.
+    P:  Parity flag.
+    C:  Carry flag.
+    Bits 5, 3 and 1 are set to 0, 0 and 1 repsectively.
+*/
+
+uint8_t i8080_psw(i8080_t* i8080) {
+    return (i8080->s << 7) | (i8080->z << 6) | (0x0 << 5) | (i8080->ac << 4) |
+           (0x0 << 3) | (i8080->p << 2) | (0x1 >> 1) | (i8080->cy);
+}
+
+void i8080_set_bc(i8080_t* i8080, uint16_t bc) {
+    i8080->b = (bc & 0xff00) >> 8;
+    i8080->c = (bc & 0x00ff);
+}
+
+void i8080_set_de(i8080_t* i8080, uint16_t de) {
+    i8080->d = (de & 0xff00) >> 8;
+    i8080->e = (de & 0x00ff);
+}
+
 void i8080_set_hl(i8080_t* i8080, uint16_t hl) {
     i8080->h = (hl & 0xff00) >> 8;
     i8080->l = (hl & 0x00ff);
+}
+
+void i8080_set_psw(i8080_t* i8080, uint8_t psw) {
+    i8080->s = psw & 0x80;
+    i8080->z = psw & 0x40;
+    i8080->ac = psw & 0x10;
+    i8080->p = psw & 0x04;
+    i8080->cy = psw & 0x01;
 }
 
 void i8080_szp(i8080_t* i8080, uint8_t byte) {
