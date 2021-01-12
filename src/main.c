@@ -9,7 +9,6 @@ uint8_t read_byte(uint16_t address);
 void write_byte(uint16_t address, uint8_t byte);
 
 void print_binary(uint8_t byte);
-_Bool parity(uint8_t byte);
 
 int main(int argc, char* argv[]) {
     // if(argc < 2) {
@@ -49,10 +48,10 @@ int main(int argc, char* argv[]) {
 
     free_i8080(i8080);
 
-    uint8_t a = 0b11011011;
-    printf("a: ");
+    uint8_t a = 0b10000010;
+    uint8_t b = a << 1;
     print_binary(a);
-    printf("a has 6 1s in its binary representation which means parity is not set. parity flag: %s\n", (parity(a) ? "true" : "false"));
+    print_binary(b);
 
     return 0;
 }
@@ -62,16 +61,6 @@ void print_binary(uint8_t byte) {
     for(int i = 0; i < 8; ++i)
         printf("%d", (byte & (0x80 >> i)) >> (7 - i));
     printf("\n");
-}
-
-_Bool parity(uint8_t byte) {
-    // if even number of 1s, return true
-    // if odd number of 1s, return false
-    uint8_t number_of_ones = 0;
-    for(int i = 0; i < 8; ++i)
-        if((byte & (0x80 >> i)) != 0)
-            number_of_ones++;
-    return number_of_ones % 2 == 0;
 }
 
 uint8_t read_byte(uint16_t address) {

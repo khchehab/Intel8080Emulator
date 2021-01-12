@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "i8080.h"
 
@@ -23,9 +24,19 @@ static const uint8_t OPCODE_LENGTHS[] = {
 /* f */ 1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1
 };
 
+// private helper functions
 static uint8_t instr_inr(i8080_t* i8080, uint8_t register_value);
 static uint8_t instr_dcr(i8080_t* i8080, uint8_t register_value);
 static uint8_t instr_add_adc(i8080_t* i8080, uint8_t register_value, bool include_carry);
+static uint8_t instr_sub_sbb(i8080_t* i8080, uint8_t register_value, bool include_carry);
+static uint8_t instr_ana(i8080_t* i8080, uint8_t register_value);
+static uint8_t instr_xra(i8080_t* i8080, uint8_t register_value);
+static uint8_t instr_ora(i8080_t* i8080, uint8_t register_value);
+static void instr_rlc(i8080_t* i8080);
+static void instr_rrc(i8080_t* i8080);
+static void instr_ral(i8080_t* i8080);
+static void instr_rar(i8080_t* i8080);
+static uint16_t instr_dad(i8080_t* i8080, uint16_t register_value);
 
 static uint16_t i8080_bc(i8080_t* i8080);
 static uint16_t i8080_de(i8080_t* i8080);
@@ -193,65 +204,66 @@ void decode(i8080_t* i8080) {
         case 0x8d: printf("ADC L"); i8080->a = instr_add_adc(i8080, i8080->l, i8080->cy); break;
         case 0x8e: printf("ADC M"); i8080->a = instr_add_adc(i8080, i8080->read_byte(hl), i8080->cy); break;
 
-        case 0x97: printf("SUB A"); break;
-        case 0x90: printf("SUB B"); break;
-        case 0x91: printf("SUB C"); break;
-        case 0x92: printf("SUB D"); break;
-        case 0x93: printf("SUB E"); break;
-        case 0x94: printf("SUB H"); break;
-        case 0x95: printf("SUB L"); break;
-        case 0x96: printf("SUB M"); break;
+        case 0x97: printf("SUB A"); i8080->a = instr_sub_sbb(i8080, i8080->a, false); break;
+        case 0x90: printf("SUB B"); i8080->a = instr_sub_sbb(i8080, i8080->b, false); break;
+        case 0x91: printf("SUB C"); i8080->a = instr_sub_sbb(i8080, i8080->c, false); break;
+        case 0x92: printf("SUB D"); i8080->a = instr_sub_sbb(i8080, i8080->d, false); break;
+        case 0x93: printf("SUB E"); i8080->a = instr_sub_sbb(i8080, i8080->e, false); break;
+        case 0x94: printf("SUB H"); i8080->a = instr_sub_sbb(i8080, i8080->h, false); break;
+        case 0x95: printf("SUB L"); i8080->a = instr_sub_sbb(i8080, i8080->l, false); break;
+        case 0x96: printf("SUB M"); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(hl), false); break;
 
-        case 0x9f: printf("SBB A"); break;
-        case 0x98: printf("SBB B"); break;
-        case 0x99: printf("SBB C"); break;
-        case 0x9a: printf("SBB D"); break;
-        case 0x9b: printf("SBB E"); break;
-        case 0x9c: printf("SBB H"); break;
-        case 0x9d: printf("SBB L"); break;
-        case 0x9e: printf("SBB M"); break;
+        case 0x9f: printf("SBB A"); i8080->a = instr_sub_sbb(i8080, i8080->a, i8080->cy); break;
+        case 0x98: printf("SBB B"); i8080->a = instr_sub_sbb(i8080, i8080->b, i8080->cy); break;
+        case 0x99: printf("SBB C"); i8080->a = instr_sub_sbb(i8080, i8080->c, i8080->cy); break;
+        case 0x9a: printf("SBB D"); i8080->a = instr_sub_sbb(i8080, i8080->d, i8080->cy); break;
+        case 0x9b: printf("SBB E"); i8080->a = instr_sub_sbb(i8080, i8080->e, i8080->cy); break;
+        case 0x9c: printf("SBB H"); i8080->a = instr_sub_sbb(i8080, i8080->h, i8080->cy); break;
+        case 0x9d: printf("SBB L"); i8080->a = instr_sub_sbb(i8080, i8080->l, i8080->cy); break;
+        case 0x9e: printf("SBB M"); i8080->a = instr_sub_sbb(i8080, i8080->read_byte(hl), i8080->cy); break;
 
-        case 0xa7: printf("ANA A"); break;
-        case 0xa0: printf("ANA B"); break;
-        case 0xa1: printf("ANA C"); break;
-        case 0xa2: printf("ANA D"); break;
-        case 0xa3: printf("ANA E"); break;
-        case 0xa4: printf("ANA H"); break;
-        case 0xa5: printf("ANA L"); break;
-        case 0xa6: printf("ANA M"); break;
+        case 0xa7: printf("ANA A"); i8080->a = instr_ana(i8080, i8080->a); break;
+        case 0xa0: printf("ANA B"); i8080->a = instr_ana(i8080, i8080->b); break;
+        case 0xa1: printf("ANA C"); i8080->a = instr_ana(i8080, i8080->c); break;
+        case 0xa2: printf("ANA D"); i8080->a = instr_ana(i8080, i8080->d); break;
+        case 0xa3: printf("ANA E"); i8080->a = instr_ana(i8080, i8080->e); break;
+        case 0xa4: printf("ANA H"); i8080->a = instr_ana(i8080, i8080->h); break;
+        case 0xa5: printf("ANA L"); i8080->a = instr_ana(i8080, i8080->l); break;
+        case 0xa6: printf("ANA M"); i8080->a = instr_ana(i8080, i8080->read_byte(hl)); break;
 
-        case 0xaf: printf("XRA A"); break;
-        case 0xa8: printf("XRA B"); break;
-        case 0xa9: printf("XRA C"); break;
-        case 0xaa: printf("XRA D"); break;
-        case 0xab: printf("XRA E"); break;
-        case 0xac: printf("XRA H"); break;
-        case 0xad: printf("XRA L"); break;
-        case 0xae: printf("XRA M"); break;
+        case 0xaf: printf("XRA A"); i8080->a = instr_xra(i8080, i8080->a); break;
+        case 0xa8: printf("XRA B"); i8080->a = instr_xra(i8080, i8080->b); break;
+        case 0xa9: printf("XRA C"); i8080->a = instr_xra(i8080, i8080->c); break;
+        case 0xaa: printf("XRA D"); i8080->a = instr_xra(i8080, i8080->d); break;
+        case 0xab: printf("XRA E"); i8080->a = instr_xra(i8080, i8080->e); break;
+        case 0xac: printf("XRA H"); i8080->a = instr_xra(i8080, i8080->h); break;
+        case 0xad: printf("XRA L"); i8080->a = instr_xra(i8080, i8080->l); break;
+        case 0xae: printf("XRA M"); i8080->a = instr_xra(i8080, i8080->read_byte(hl)); break;
 
-        case 0xb7: printf("ORA A"); break;
-        case 0xb0: printf("ORA B"); break;
-        case 0xb1: printf("ORA C"); break;
-        case 0xb2: printf("ORA D"); break;
-        case 0xb3: printf("ORA E"); break;
-        case 0xb4: printf("ORA H"); break;
-        case 0xb5: printf("ORA L"); break;
-        case 0xb6: printf("ORA M"); break;
+        case 0xb7: printf("ORA A"); i8080->a = instr_ora(i8080, i8080->a); break;
+        case 0xb0: printf("ORA B"); i8080->a = instr_ora(i8080, i8080->b); break;
+        case 0xb1: printf("ORA C"); i8080->a = instr_ora(i8080, i8080->c); break;
+        case 0xb2: printf("ORA D"); i8080->a = instr_ora(i8080, i8080->d); break;
+        case 0xb3: printf("ORA E"); i8080->a = instr_ora(i8080, i8080->e); break;
+        case 0xb4: printf("ORA H"); i8080->a = instr_ora(i8080, i8080->h); break;
+        case 0xb5: printf("ORA L"); i8080->a = instr_ora(i8080, i8080->l); break;
+        case 0xb6: printf("ORA M"); i8080->a = instr_ora(i8080, i8080->read_byte(hl)); break;
 
-        case 0xbf: printf("CMP A"); break;
-        case 0xb8: printf("CMP B"); break;
-        case 0xb9: printf("CMP C"); break;
-        case 0xba: printf("CMP D"); break;
-        case 0xbb: printf("CMP E"); break;
-        case 0xbc: printf("CMP H"); break;
-        case 0xbd: printf("CMP L"); break;
-        case 0xbe: printf("CMP M"); break;
+        // CMP basically does the same subtract as SUB instruction and sets the flags with the same rules without changing any registers
+        case 0xbf: printf("CMP A"); instr_sub_sbb(i8080, i8080->a, false); break;
+        case 0xb8: printf("CMP B"); instr_sub_sbb(i8080, i8080->b, false); break;
+        case 0xb9: printf("CMP C"); instr_sub_sbb(i8080, i8080->c, false); break;
+        case 0xba: printf("CMP D"); instr_sub_sbb(i8080, i8080->d, false); break;
+        case 0xbb: printf("CMP E"); instr_sub_sbb(i8080, i8080->e, false); break;
+        case 0xbc: printf("CMP H"); instr_sub_sbb(i8080, i8080->h, false); break;
+        case 0xbd: printf("CMP L"); instr_sub_sbb(i8080, i8080->l, false); break;
+        case 0xbe: printf("CMP M"); instr_sub_sbb(i8080, i8080->read_byte(hl), false); break;
 
         // Rotate Accumulator Instructions
-        case 0x07: printf("RLC"); break;
-        case 0x0f: printf("RRC"); break;
-        case 0x17: printf("RAL"); break;
-        case 0x1f: printf("RAR"); break;
+        case 0x07: printf("RLC"); instr_rlc(i8080); break;
+        case 0x0f: printf("RRC"); instr_rrc(i8080); break;
+        case 0x17: printf("RAL"); instr_ral(i8080); break;
+        case 0x1f: printf("RAR"); instr_rar(i8080); break;
 
         // Register Pair Instructions
         case 0xc5: printf("PUSH B"); break;
@@ -264,10 +276,10 @@ void decode(i8080_t* i8080) {
         case 0xe1: printf("POP H"); break;
         case 0xf1: printf("POP PSW"); break;
 
-        case 0x09: printf("DAD B"); break;
-        case 0x19: printf("DAD D"); break;
-        case 0x29: printf("DAD H"); break;
-        case 0x39: printf("DAD SP"); break;
+        case 0x09: printf("DAD B");  break;
+        case 0x19: printf("DAD D");  break;
+        case 0x29: printf("DAD H");  break;
+        case 0x39: printf("DAD SP");  break;
 
         case 0x03: printf("INX B"); break;
         case 0x13: printf("INX D"); break;
@@ -406,8 +418,69 @@ uint8_t instr_add_adc(i8080_t* i8080, uint8_t register_value, bool include_carry
     uint16_t result = i8080->a + register_value + include_carry;
     i8080_szp(i8080, result & 0xff);
     i8080->ac = (((i8080->a & 0x0f) + (register_value & 0x0f) + include_carry) & 0x10) != 0;
-    i8080->cy = result & 0x0100 != 0;
+    i8080->cy = (result & 0x0100) != 0;
+    return result & 0xff;
+}
+
+uint8_t instr_sub_sbb(i8080_t* i8080, uint8_t register_value, bool include_carry) {
+    uint16_t result = i8080->a - register_value - include_carry;
+    i8080_szp(i8080, result & 0xff);
+    i8080->ac = (((i8080->a & 0x0f) - (register_value & 0x0f) - include_carry) & 0x10) != 0;
+    i8080->cy = (result & 0x0100) != 0;
+    return result & 0xff;
+}
+
+uint8_t instr_ana(i8080_t* i8080, uint8_t register_value) {
+    uint8_t result = i8080->a & register_value;
+    i8080_szp(i8080, result);
+    i8080->ac = (i8080->a & 0x08) | (register_value & 0x08);
+    i8080->cy = false;
     return result;
+}
+
+uint8_t instr_xra(i8080_t* i8080, uint8_t register_value) {
+    uint8_t result = i8080->a ^ register_value;
+    i8080_szp(i8080, result);
+    i8080->ac = false;
+    i8080->cy = false;
+    return result;
+}
+
+uint8_t instr_ora(i8080_t* i8080, uint8_t register_value) {
+    uint8_t result = i8080->a | register_value;
+    i8080_szp(i8080, result);
+    i8080->ac = false;
+    i8080->cy = false;
+    return result;
+}
+
+void instr_rlc(i8080_t* i8080) {
+    i8080->cy = (i8080->a & 0x80) >> 7;
+    i8080->a = (i8080->a << 1) | i8080->cy;
+}
+
+void instr_rrc(i8080_t* i8080) {
+    i8080->cy = i8080->a & 0x01;
+    i8080->a = (i8080->a >> 1) | (i8080->cy << 7);
+}
+
+void instr_ral(i8080_t* i8080) {
+    bool new_cy = (i8080->a & 0x80) >> 7;
+    i8080->a = (i8080->a << 1) | i8080->cy;
+    i8080->cy = new_cy;
+}
+
+void instr_rar(i8080_t* i8080) {
+    bool new_cy = i8080->a & 0x01;
+    i8080->a = (i8080->a >> 1) | (i8080->cy << 7);
+    i8080->cy = new_cy;
+}
+
+uint16_t instr_dad(i8080_t* i8080, uint16_t register_value) {
+    uint16_t hl_register = i8080_hl(i8080);
+    uint32_t result = hl_register + register_value;
+    i8080->cy = (result & 0x00010000) != 0;
+    return result & 0xffff;
 }
 
 uint16_t i8080_bc(i8080_t* i8080) {
