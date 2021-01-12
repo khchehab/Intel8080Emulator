@@ -36,11 +36,12 @@ static void instr_rlc(i8080_t* i8080);
 static void instr_rrc(i8080_t* i8080);
 static void instr_ral(i8080_t* i8080);
 static void instr_rar(i8080_t* i8080);
-static uint16_t instr_dad(i8080_t* i8080, uint16_t register_value);
+static void instr_dad(i8080_t* i8080, uint16_t register_value);
 
 static uint16_t i8080_bc(i8080_t* i8080);
 static uint16_t i8080_de(i8080_t* i8080);
 static uint16_t i8080_hl(i8080_t* i8080);
+static void i8080_set_hl(i8080_t* i8080, uint16_t hl);
 static void i8080_szp(i8080_t* i8080, uint8_t byte);
 static bool parity(uint8_t byte);
 
@@ -276,10 +277,10 @@ void decode(i8080_t* i8080) {
         case 0xe1: printf("POP H"); break;
         case 0xf1: printf("POP PSW"); break;
 
-        case 0x09: printf("DAD B");  break;
-        case 0x19: printf("DAD D");  break;
-        case 0x29: printf("DAD H");  break;
-        case 0x39: printf("DAD SP");  break;
+        case 0x09: printf("DAD B"); instr_dad(i8080, i8080_bc(i8080)); break;
+        case 0x19: printf("DAD D"); instr_dad(i8080, i8080_de(i8080)); break;
+        case 0x29: printf("DAD H"); instr_dad(i8080, i8080_hl(i8080)); break;
+        case 0x39: printf("DAD SP"); instr_dad(i8080, i8080->sp); break;
 
         case 0x03: printf("INX B"); break;
         case 0x13: printf("INX D"); break;
@@ -476,11 +477,11 @@ void instr_rar(i8080_t* i8080) {
     i8080->cy = new_cy;
 }
 
-uint16_t instr_dad(i8080_t* i8080, uint16_t register_value) {
+void instr_dad(i8080_t* i8080, uint16_t register_value) {
     uint16_t hl_register = i8080_hl(i8080);
     uint32_t result = hl_register + register_value;
     i8080->cy = (result & 0x00010000) != 0;
-    return result & 0xffff;
+    i8080_set_hl(i8080, result & 0xffff);
 }
 
 uint16_t i8080_bc(i8080_t* i8080) {
@@ -493,6 +494,11 @@ uint16_t i8080_de(i8080_t* i8080) {
 
 uint16_t i8080_hl(i8080_t* i8080) {
     return (i8080->h << 8) | (i8080->l);
+}
+
+void i8080_set_hl(i8080_t* i8080, uint16_t hl) {
+    i8080->h = (hl & 0xff00) >> 8;
+    i8080->l = (hl & 0x00ff);
 }
 
 void i8080_szp(i8080_t* i8080, uint8_t byte) {
