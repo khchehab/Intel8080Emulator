@@ -15,9 +15,6 @@ SOURCE_FILES=$(SRC)/main.c $(SRC)/i8080.c
 # Flags
 CC_FLAGS=-std=c11
 
-# Test Binaries
-CPUDIAG=cpudiag
-
 all: clean $(EXECUTABLE)
 	@./$(BUILD)/$(EXECUTABLE)
 
@@ -29,7 +26,3 @@ $(BUILD):
 
 clean:
 	@$(RM) $(BUILD)
-
-# Test Targets
-$(CPUDIAG): clean $(EXECUTABLE)
-	@./$(BUILD)/$(EXECUTABLE) $(TEST)/$(CPUDIAG).bin

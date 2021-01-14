@@ -1,4 +1,4 @@
 out/
-test/
+tests/
 .DS_Store
 TODO
