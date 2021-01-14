@@ -15,8 +15,8 @@ typedef struct i8080_t {
     void (*write_byte)(uint16_t, uint8_t);
 } i8080_t;
 
-i8080_t* init_i8080();
+i8080_t* init_i8080(uint16_t initial_pc);
 void free_i8080(i8080_t* i8080);
-void decode(i8080_t* i8080);
+void i8080_decode(i8080_t* i8080);
 
 #endif // __I_8080_H__
