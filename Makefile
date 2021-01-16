@@ -18,6 +18,9 @@ CC_FLAGS=-std=c11
 all: clean $(EXECUTABLE)
 	@./$(BUILD)/$(EXECUTABLE)
 
+debug: CC_FLAGS+=-DDEBUG
+debug: all
+
 $(EXECUTABLE): $(BUILD)
 	@$(CC) $(SOURCE_FILES) -o $(BUILD)/$(EXECUTABLE) $(CC_FLAGS)
 

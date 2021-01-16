@@ -15,7 +15,7 @@ static bool write_rom_into_memory(const char* rom_filename, int offset);
 static bool run_test_rom(const char* rom_filename, int offset);
 
 int main(int argc, char* argv[]) {
-    run_test_rom("test/TST8080.COM", 0x0100);
+    run_test_rom("tests/TST8080.COM", 0x0100);
     return 0;
 }
 
@@ -98,10 +98,10 @@ bool run_test_rom(const char* rom_filename, int offset) {
                 }
             }
 
-            i8080_decode(i8080);
+            decode_i8080(i8080);
 
             if(i8080->pc == 0x0000) {
-                printf("Jumped to 0x0000 from %04x\n", current_pc);
+                printf("\nJumped to 0x0000 from 0x%04x\n", current_pc);
                 break;
             }
         }
@@ -127,7 +127,7 @@ bool run_test_rom(const char* rom_filename, int offset) {
     }
 
     printf("End Time: %s\n", time_representation);
-    printf("The test %s took %.2lf seconds\n", rom_filename, difftime(end_time, start_time));
+    printf("The test '%s' took %.2lf seconds\n", rom_filename, difftime(end_time, start_time));
 
     return true;
 }
