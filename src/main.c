@@ -65,6 +65,7 @@ bool run_test_rom(const char* rom_filename, int offset) {
         return false;
     }
     printf("Start Time: %s\n", time_representation);
+    printf("=====================================\n");
 
     memory = calloc(MEMORY_SIZE, sizeof(uint8_t));
 
@@ -96,6 +97,7 @@ bool run_test_rom(const char* rom_filename, int offset) {
                 if(i8080->c == 0x02) {
                     printf("%c", i8080->e);
                 }
+
             }
 
             decode_i8080(i8080);
