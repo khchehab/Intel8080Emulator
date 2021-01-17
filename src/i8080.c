@@ -255,14 +255,14 @@ void decode_i8080(i8080_t* i8080) {
         case 0xb5: debug_printf("ORA L"); i8080->a = instr_ora(i8080, i8080->l); break;
         case 0xb6: debug_printf("ORA M"); i8080->a = instr_ora(i8080, i8080->read_byte(hl(i8080))); break;
 
-        case 0xbf: debug_printf("CMP A"); instr_sub(i8080, i8080->a, i8080->cy); break;
-        case 0xb8: debug_printf("CMP B"); instr_sub(i8080, i8080->b, i8080->cy); break;
-        case 0xb9: debug_printf("CMP C"); instr_sub(i8080, i8080->c, i8080->cy); break;
-        case 0xba: debug_printf("CMP D"); instr_sub(i8080, i8080->d, i8080->cy); break;
-        case 0xbb: debug_printf("CMP E"); instr_sub(i8080, i8080->e, i8080->cy); break;
-        case 0xbc: debug_printf("CMP H"); instr_sub(i8080, i8080->h, i8080->cy); break;
-        case 0xbd: debug_printf("CMP L"); instr_sub(i8080, i8080->l, i8080->cy); break;
-        case 0xbe: debug_printf("CMP M"); instr_sub(i8080, i8080->read_byte(hl(i8080)), i8080->cy); break;
+        case 0xbf: debug_printf("CMP A"); instr_sub(i8080, i8080->a, false); break;
+        case 0xb8: debug_printf("CMP B"); instr_sub(i8080, i8080->b, false); break;
+        case 0xb9: debug_printf("CMP C"); instr_sub(i8080, i8080->c, false); break;
+        case 0xba: debug_printf("CMP D"); instr_sub(i8080, i8080->d, false); break;
+        case 0xbb: debug_printf("CMP E"); instr_sub(i8080, i8080->e, false); break;
+        case 0xbc: debug_printf("CMP H"); instr_sub(i8080, i8080->h, false); break;
+        case 0xbd: debug_printf("CMP L"); instr_sub(i8080, i8080->l, false); break;
+        case 0xbe: debug_printf("CMP M"); instr_sub(i8080, i8080->read_byte(hl(i8080)), false); break;
 
         // Rotate Accumulator Instructions
         case 0x07: debug_printf("RLC"); instr_rlc(i8080); break;
@@ -519,7 +519,7 @@ void instr_daa(i8080_t* i8080) {
         add_value += 0x60;
     }
 
-    instr_add(i8080, add_value, false);
+    i8080->a = instr_add(i8080, add_value, false);
 }
 
 uint8_t instr_add(i8080_t* i8080, uint8_t register_value, bool include_carry) {
@@ -535,13 +535,15 @@ uint8_t instr_add(i8080_t* i8080, uint8_t register_value, bool include_carry) {
 }
 
 uint8_t instr_sub(i8080_t* i8080, uint8_t register_value, bool include_carry) {
-    uint16_t result = i8080->a - register_value;
+    uint16_t result = i8080->a - register_value - include_carry;
     set_flags_szp(i8080, result & 0xff);
 
     i8080->cy = (result & 0x0100) != 0;
     
-    uint8_t aux_byte = (i8080->a & 0x0f) - (register_value & 0x0f) - include_carry;
-    i8080->ac = (aux_byte & 0x10) != 0;
+    // uint8_t aux_byte = (i8080->a & 0x0f) - (register_value & 0x0f) - include_carry;
+    // i8080->ac = (aux_byte & 0x10) != 0;
+
+    i8080->ac = ~(i8080->a ^ result ^ register_value) & 0x10;
 
     return result & 0xff;
 }
@@ -550,7 +552,7 @@ uint8_t instr_ana(i8080_t* i8080, uint8_t register_value) {
     uint8_t result = i8080->a & register_value;
     set_flags_szp(i8080, result & 0xff);
     i8080->cy = false;
-    i8080->ac = false;
+    i8080->ac = false; // ((c->a | val) & 0x08) != 0; ??????
     return result;
 }
 
